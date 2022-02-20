@@ -1,0 +1,80 @@
+// Q1: Find all Producers that produced the movie When Harry Met Sally
+MATCH (whms {title: "When Harry Met Sally"})<-[:PRODUCED]-(producers) 
+RETURN DISTINCT producers.name
+ 
+
+// Q2: Find directors who have directed more than 2 movies
+MATCH (p:Person)-[:DIRECTED]->(n:Movie)
+WHERE size((:Person)-[:DIRECTED]-(:Movie)) > 2
+RETURN p.name, size(collect(n.title)) AS numberOfmovies
+ 
+
+// Q3: Find the actors with 5+ movies, and the movies in which they acted
+MATCH (p:Person)-[:ACTED_IN]->(n:Movie)
+WHERE size((p)-[:ACTED_IN]-(:Movie)) > 5
+RETURN p.name, n.title
+ORDER BY p.name
+ 
+
+// Q4: Movies and actors exactly 3 "hops" away from the movie Hoffa
+MATCH (movie:Movie {title:"Hoffa"})-[*3]-(p:Person)
+RETURN DISTINCT p.name
+ 
+
+// Interestingly, there don’t appear to be any movies that are three hops away. There are films that are
+// two and four hops away, but three doesn’t exist because it’s an odd number. Meaning, the
+// relationships alternate movie/person/movie/person, etc., such that there aren’t any movies three
+// hops away from Hoffa. This is evidenced when testing for other films as well.
+MATCH (movie:Movie {title:"Hoffa"})-[*3]-(n:Movie)
+RETURN n.title
+ 
+
+// Q5: Find all actors who have also directed movies and the movies that they directed.
+// For this, I assume that we are looking for actors who acted in a movie and directed that same
+// movie, as opposed to acting in any movie and also directing any movie.
+MATCH (p:Person)-[:ACTED_IN]->(m)<-[:DIRECTED]-(p:Person)
+RETURN DISTINCT p.name, m.title
+ 
+
+// Q6: Provide 5 additional queries and indicate the specific business use cases they Address
+// Q6.1 Who are the most prolific reviewers? If certain reviewers are reviewing more films (and we
+// assume that they are more renowned because of this) then one might want to ensure that you have a
+// positive relationship with the reviewer to avoid unnecessary review strife.
+MATCH (p:Person)-[:REVIEWED]->(n:Movie)
+RETURN DISTINCT p.name, COUNT((p)-[:REVIEWED]-(:Movie)) AS reviews
+ORDER BY reviews DESC
+ 
+
+// Q6.2 Which films were reviewed, and how many reviews did they receive? This could inform whether
+// or not a deeper analysis should be conducted, in that if only certain films are getting the bulk of the
+// reviews, why is that?
+MATCH (p:Person)-[:REVIEWED]->(n:Movie)
+RETURN DISTINCT n.title, COUNT((p)-[:REVIEWED]-(:Movie)) AS reviews
+ORDER BY reviews DESC
+ 
+
+// Q6.3 How many writers wrote a film alongside another writer? If one was to need a writer for an
+// upcoming film who has experience working with other writers, this would help identify them.
+MATCH (p:Person)-[:WROTE]->(film)<-[:WROTE]-(person:Person)
+RETURN DISTINCT p.name, person.name, film.title
+ 
+
+// Q6.4 Who is that special combination of writer, director, and producer that can simply do it all? If
+// you’re looking for a one-stop shop, who can do all three roles to provide the most bang for your
+// movie budget buck?
+MATCH (p:Person)-[:WROTE]->(film)<-[:DIRECTED]-(p:Person)
+MATCH (p:Person)-[:WROTE]->(film)<-[:PRODUCED]-(p:Person)
+RETURN DISTINCT p.name, film.title
+ 
+
+// Q6.5 The reviewers seem to have rated the films in their reviews. Are they balanced reviewers on
+// average, or do they skew high or low?
+MATCH (n) WHERE EXISTS (n.rating)
+RETURN DISTINCT "node" as entity, n.rating AS rating, count(n.rating) AS numRatings
+UNION ALL MATCH ()-[r]-() WHERE EXISTS (r.rating)
+RETURN DISTINCT "relationship" AS entity, r.rating AS rating, count(r.rating) AS numRatings
+ORDER BY numRatings DESC
+// Without conducting a statistical analysis, the above suggests that they do skew a bit high in terms of ratings, given the minimum is 45 and the mode is 65. 
+ 
+
+
